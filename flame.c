@@ -18,7 +18,14 @@ int flame_flush_display(flame_obj_t *fo)
 int flame_close(flame_obj_t *fo)
 {
   if (fo)
-    return free(fo), 1;
+  { 
+    XFreeGC(fo->display, fo->gc);
+    XCloseDisplay(fo->display);
+
+    free(fo);
+
+    return 1;
+  }
   else
     return 0;
 }
