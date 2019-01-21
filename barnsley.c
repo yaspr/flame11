@@ -65,7 +65,7 @@ void barnsley(flame_obj_t *fo, uint64_t iter)
 
       printf("%lf %lf %lf\n", r, x, y);
       
-      flame_draw_point(fo, BASE_X + (-x * SCALE), BASE_Y + (-y * SCALE));
+      flame_draw_point(fo, BASE_X + (x * SCALE), BASE_Y - (y * SCALE));
     }
 }
 
