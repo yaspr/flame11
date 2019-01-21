@@ -1,0 +1,4 @@
+{ F, X, Y, +, - };
+FX+FX+;
+(X, X+YF) (Y, FX-Y);
+(F, forward) (+, +1 * pi / 2) (-, -1 * pi / 2);

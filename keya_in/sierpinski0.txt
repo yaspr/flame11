@@ -1,0 +1,4 @@
+{ A, B, +, - };
+A;
+(A, B-A-B) (B, A+B+A);
+(A, forward) (B, forward) (+, -1 * PI / 3) (-, +1 * PI / 3); 

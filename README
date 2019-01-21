@@ -1,0 +1,200 @@
+
+/*
+
+
+                            y'
+			    
+	 |		   /|\
+	 |     	       	    |                                 \
+      ---O------------------+----------------+----------------- x
+  	 |                  |                |                /
+	 |                  |                |
+	 |                  |                |
+	 |                  |                |                \
+      ---+------------------B----------------+----------------- x'
+	 |                  |                |                /
+	 |                  |                |
+	 |                  |                |
+	 |                  |                |
+	 +------------------+----------------+
+	 |		    |      | Screen |
+	 |		    |      ----------  
+	 |		    |
+	 |		    |
+	 |		    |
+	 |		    |
+	 |		    |
+	\|/		    |
+	
+	 y                  
+
+	 O(0, 0) --> origin of the X11 plane
+	 B(X, Y) --> origin translation 
+
+ */
+
+#define BUFFER_SIZE 4 * 1024 * 1024 //4MB
+
+/*
+   . Koch curve
+   ------------
+
+   Alphabet: { F, +, - }
+   Axiom: F
+   Rules:
+          F -> F+F-F-F+F
+
+   F --> forward
+   + --> turn +angle
+   - --> turn -angle
+
+   ENTRY_ID = [
+
+   { F, +, - }; 
+   F; 
+   (F, F+F-F-F+F); 
+   (F, forward), (+, +angle(D, VAL_IN_DEG or R, VAL_IN_RAD)), (-, -angle(D, VAL_IN_DEG or R, VAL_IN_RAD));
+   
+   ]
+
+   VAL_IN_DEG = number
+   VAL_IN_RAD = number * PI / number
+
+   . Sierpinski's triangle
+   -----------------------
+
+   Alphabet: { A, B, +, - }
+   Axiom: A
+   Rules:
+          A -> B-A-B
+	  B -> A+B+A
+
+   A --> forward
+   B --> forward
+   + --> turn +angle
+   - --> turn -angle
+*/
+
+//
+void eval_koch(display_t *d, char *restrict expr)
+{
+  int i = 0;
+
+  while (expr[i])
+    {
+      if (expr[i] == 'F')
+	forward(d, 2);
+      else
+	if (expr[i] == '+')
+	  turn(d, -PI_2);
+	else
+	  if (expr[i] == '-')
+	    turn(d, PI_2);
+
+      i++;
+    }
+}
+
+//
+void koch(display_t *d, int iter)
+{
+  int i, j, n;
+  char *restrict axiom    = malloc(sizeof(char) * BUFFER_SIZE);
+  char *restrict sentence = malloc(sizeof(char) * BUFFER_SIZE);
+
+  axiom[0] = 'F';
+  sentence[0] = 0;
+
+  n = 0;
+
+  while (n < iter)
+    {
+      eval_koch(d, axiom);
+
+      i = j = 0;
+
+      /* printf("A: %s\n", axiom); */
+
+      while (axiom[i])
+	{
+	  if (axiom[i] == 'F')
+	    strncpy(sentence + j, "F+F-F-F+F", 9), j += 9;
+	  else
+	    sentence[j++] = axiom[i];
+
+	  i++;
+	}
+
+      strcpy(axiom, sentence);
+
+      /* printf("S: %s\n", axiom); */
+
+      n++;
+    }
+
+  free(axiom);
+  free(sentence);
+}
+
+//
+void eval_sierpinski(display_t *d, char *restrict expr)
+{
+  int i = 0;
+
+  while (expr[i])
+    {
+      if (expr[i] == 'A' || expr[i] == 'B')
+	forward(d, 2);
+      else
+	if (expr[i] == '+')
+	  turn(d, -PI_3);
+	else
+	  if (expr[i] == '-')
+	    turn(d, PI_3);
+
+      i++;
+    }
+}
+
+//
+void sierpinski(display_t *d, int iter)
+{
+  int i, j, n;
+  char *restrict axiom    = malloc(sizeof(char) * BUFFER_SIZE);
+  char *restrict sentence = malloc(sizeof(char) * BUFFER_SIZE);
+
+  axiom[0] = 'A';
+  sentence[0] = 0;
+
+  n = 0;
+  
+  while (n < iter)
+    {
+      eval_sierpinski(d, axiom);
+
+      i = j = 0;
+
+      /* printf("A: %s\n", axiom); */
+
+      while (axiom[i])
+	{
+	  if (axiom[i] == 'A')
+	    strncpy(sentence + j, "B-A-B", 5), j += 5;
+	  else if (axiom[i] == 'B')
+	    strncpy(sentence + j, "A+B+A", 5), j += 5;
+	  else
+	    sentence[j++] = axiom[i];
+
+	  i++;
+	}
+
+      strcpy(axiom, sentence);
+
+      /* printf("S: %s\n", axiom); */
+
+      n++;
+    }
+
+  free(axiom);
+  free(sentence);
+}

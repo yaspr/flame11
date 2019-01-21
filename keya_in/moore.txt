@@ -1,0 +1,4 @@
+{ L, R, F, +, - };
+LFL+F+LFL;
+(L,  -RF+LFL+FR-) (R, +LF-RFR-FL+);
+(F, forward) (+, +1 * pi / 2) (-, -1 * pi / 2);
