@@ -1,3 +1,43 @@
+Graphics ramblings ...
+
+Keya is a turtle graphics engine driven by a grammar description.
+keya_in contains examples of well known fractals decribed using a simple grammar
+description format:
+
+{ ALPHABET };
+AXIOM;
+(SYMBOL, RULE) [(SYMBOL, RULE)]* ;
+(SYMBOL, OPERATION) [(SYMBOL, OPERATION)]*;
+
+Grammar:
+--------
+
+ALPHABET  = SYMBOL [, SYMBOL]*
+AXIOM     = RULE
+RULE      = SYMBOL [SYMBOL]*
+OPERATION = forward | push | pop | [+ | -]NUMBER * PI / NUMBER
+
+
+Generic grammar:
+----------------
+
+ALPHABET; RULE; RULES; ; DEFINITIONS;
+  
+ALPHABET    = { SYMBOL [, SYMBOL]* };
+RULE        = SYMBOL [SYMBOL]*;
+RULES       = (SYMBOL, RULE) [, (SYMBOL, RULE)]*;
+DEFINITIONS = (SYMBOL, OPERATION) [, (SYMBOL, OPERATION)]*;
+  
+SYMBOL = any printable character
+NUMBER = [0..9][0..9]*
+OPERATION = forward | push | pop | [+ | -]NUMBER * PI / NUMBER]])
+
+Examples:
+---------
+
+. Grammars for drawing trees
+. Sierpinski's triangle
+. Koch's curve
 
 /*
 
@@ -198,3 +238,4 @@ void sierpinski(display_t *d, int iter)
   free(axiom);
   free(sentence);
 }
+
