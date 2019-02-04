@@ -175,7 +175,10 @@ char flame_wait(flame_obj_t *fo, int *click_x, int *click_y)
       XNextEvent(fo->display, &event);
       
       if (event.type == KeyPress)
-	return XLookupKeysym(&event.xkey, 0);
+	{
+	  /* printf("%c\n", XLookupKeysym(&event.xkey, 0)); */
+	  return XLookupKeysym(&event.xkey, 0);
+	}
       else
 	if (event.type == ButtonPress)
 	  {

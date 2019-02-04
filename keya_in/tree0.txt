@@ -1,4 +1,4 @@
 { X, F, +, -, [, ] };
 X;
 (X, F[+X][-X]);
-(F, forward) (+, -5 * PI / 36) ( -, +5 * PI / 36) ([, push) (], pop);
+(F, forward) (+, -1 * PI / 12) ( -, +1 * PI / 12) ([, push) (], pop);
