@@ -32,7 +32,7 @@ typedef struct ppm_s {
 //
 int randxy(int a, int b)
 {
-  return (a + (rand() % b)) % b;
+  return ((rand() % b) - a + 1) % b;
 }
 
 //
@@ -468,7 +468,7 @@ int main(int argc, char **argv)
   printf("List of keyboard commands:\n"
 	 " i: zoom in by 2\n"
 	 " o: zoom out by 2\n"
-	 " a: adjust\n"
+	 " a: redraw\n"
 	 " b: convert to black & white\n"
 	 " g: convert to grayscale\n"
 	 " d: apply dithering\n"

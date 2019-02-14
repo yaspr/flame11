@@ -147,7 +147,7 @@ void render3D(flame_obj_t *fo, xy_t base, object_3D_t *o, xyz_t pov, xy_t rot, i
   
   if (edge_on)
     {
-      flame_set_color(fo, 169, 169, 169);
+      flame_set_color(fo, 0, 0, 255);
       
       //
       for (int i = 0; i < o->n; i++)
@@ -400,12 +400,6 @@ int main(int argc, char **argv)
 	{
 	  printf("Click at: %d, %d\n", click_x, click_y);
 
-	  pov.x = click_x / 200;
-	  pov.y = click_y / 200;
-	  
-	  rot.x += pov.x;
-	  rot.y += pov.y;
-	  
 	  goto run;
 	}
       else

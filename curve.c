@@ -25,20 +25,6 @@
 #define pow3(a) ((a) * (a) * (a))
 
 //
-void delay(unsigned millis) 
-{ 
-  // Converting time into milli_seconds 
-  int milli_seconds = millis; 
-  
-  // Stroing start time 
-  clock_t start_time = clock(); 
-  
-  // looping till required time is not acheived 
-  while (clock() < start_time + milli_seconds) 
-    ; 
-}
-
-//
 unsigned randxy(unsigned x, unsigned y)
 { return (x + (rand() % y)) % y; }
 
@@ -54,8 +40,6 @@ void cuBezier(flame_obj_t *fo, unsigned x[4], unsigned y[4], unsigned x_max, uns
       yt = pow3(1 - t) * y[0] + 3 * t * pow2(1 - t) * y[1] + 3 * (1 - t) * pow2(t) * y[2] + pow3(t) * y[3];
       
       flame_draw_point(fo, xt, yt);
-
-      delay(d);
     }
 }
 
@@ -158,7 +142,7 @@ int main(int argc, char **argv)
       X[i] = randxy(x_min, x_max);
       Y[i] = randxy(y_min, y_max);
     }
-
+  
   flame_clear_display(fo);
   
   //cuBezier(fo, X, Y, x_max, y_max, DELAY);
