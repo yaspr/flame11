@@ -4,12 +4,9 @@ all: k
 	gcc -std=c99 -g3 flame.c curve.c      -o curve      -lm -lX11
 	gcc -std=c99 -g3 flame.c lorenz.c     -o lorenz     -lm -lX11
 	gcc -std=c99 -g3 flame.c barnsley.c   -o barnsley   -lm -lX11
-<<<<<<< HEAD
 	gcc -std=c99 -g3 flame.c recaman.c    -o recaman    -lm -lX11
 	gcc -std=c99 -g3 flame.c ppm.c        -o ppm        -lm -lX11
 	gcc -std=c99 -g3 flame.c lissajous.c  -o lissajous  -lm -lX11
-=======
->>>>>>> parent of 5bdc8ad... New fun stuff
 
 k:
 	gcc -std=c99 -g3 -c flame.c display.c stack.c generator.c parser.c -lm -lX11
@@ -18,8 +15,5 @@ k:
 	@rm *.o
 
 clean:
-<<<<<<< HEAD
 	rm -rf *~ *.o mandelbrot randwalk curve lorenz barnsley keya 3Dg recaman ppm lissajous
-=======
 	rm -rf *~ *.o mandelbrot randwalk curve lorenz barnsley keya
->>>>>>> parent of 5bdc8ad... New fun stuff
