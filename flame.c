@@ -173,6 +173,7 @@ char flame_wait(flame_obj_t *fo, int *click_x, int *click_y)
   
   while (1)
     {
+<<<<<<< HEAD
       if (XPending(fo->display) > 0)
 	{
 	  XNextEvent(fo->display, &event);
@@ -192,6 +193,12 @@ char flame_wait(flame_obj_t *fo, int *click_x, int *click_y)
 		return event.xbutton.button;
 	      }
 	}
+=======
+      XNextEvent(fo->display, &event);
+      
+      if (event.type == KeyPress)
+	return XLookupKeysym(&event.xkey, 0);
+>>>>>>> parent of 5bdc8ad... New fun stuff
       else
 	{
 	  ;

@@ -34,7 +34,7 @@ static const char errors[NB_ERRORS][ERR_MSG_LEN] = { "rad angle format error"   
 static int curr = 0;
 
 /*
-  ALPHABET; RULE; RULES;l DEFINITIONS;
+  ALPHABET; RULE; RULES; ; DEFINITIONS;
   
   ALPHABET    = { SYMBOL [, SYMBOL]* };
   RULE        = SYMBOL [SYMBOL]*;
