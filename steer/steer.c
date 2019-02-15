@@ -11,9 +11,7 @@
 
 #include "pi.h"
 
-#define UFO_SIZE 10
-
-#define MAX_POINTS 100
+#define MAX_PLANETS  100
 
 #define MAX_DISTANCE 900
 
@@ -23,6 +21,22 @@ typedef unsigned char byte;
 //
 typedef struct xy_s { double x; double y; } xy_t;
 
+//
+typedef struct ppm_s {
+
+  int w; //Width
+  int h; //Height 
+  int t; //Threshold
+  byte *px; } ppm_t;
+
+//
+typedef struct planet_s {
+
+  double x;
+  double y;
+
+  ppm_t *image; } planet_t;
+  
 //
 typedef struct vehicle_s {
 
@@ -61,6 +75,9 @@ typedef struct vehicle_s {
 
   double max_speed;
   double max_force;
+
+  ppm_t *image;
+  
 } vehicle_t;
 
 //
@@ -106,6 +123,118 @@ static inline void rotate(double *x, double *y, double angle)
 
   *x = cos(angle * xx) - sin(angle * yy);
   *y = cos(angle * yy) + sin(angle * xx);
+}
+
+//
+ppm_t *ppm_open(char *fname)
+{
+  char c0, c1, c;
+  FILE *fd = fopen(fname, "rb");
+
+  if (fd)
+    {
+      ppm_t *p = malloc(sizeof(ppm_t));
+      
+      fscanf(fd, "%c%c\n", &c0, &c1);
+
+      c = fgetc(fd);
+
+      if (c == '#')
+	{
+	  //Handle comment
+	  while (c != '\n')
+	    c = fgetc(fd);
+	}
+      else
+	fseek(fd, -1, SEEK_CUR);
+      
+      fscanf(fd, "%d %d\n", &p->w, &p->h);
+      fscanf(fd, "%d\n", &p->t);
+            
+      p->px = malloc(sizeof(byte) * p->w * p->h * 3);
+      
+      if (c0 == 'P')
+	if (c1 == '6') //Binary mode
+	  {
+	    fread(p->px, sizeof(byte), p->w * p->h * 3, fd);
+	  }
+	else
+	  if (c1 == '3') //ASCII mode
+	    {
+	    }
+      
+      fclose(fd);
+
+      return p;
+    }
+  else
+    return NULL;
+}
+
+//Pick one pixel out of 2 & 1 row out of two
+void ppm_zoom_out_x2(ppm_t *p)
+{
+  int l = 0, m = 0;
+  //Half the width, half the hight, 3 bytes per pixel 
+  byte *new_px = malloc(sizeof(byte) * (p->w >> 1) * (p->h >> 1) * 3);
+
+  //Pointer hacking :) (1D ==> 2D) 
+  byte (*p_px)[p->w * 3] = (byte (*)[p->w * 3]) p->px;
+  byte (*p_new_px)[(p->w >> 1) * 3] = (byte (*)[(p->w >> 1) * 3]) new_px;
+  
+  for (int i = 0; i < p->h && l < (p->h >> 1); i += 2, l++)
+    {
+      m = 0;
+      
+      for (int j = 0, k = 0; j < p->w; j += 2, k += 6, m += 3)
+	{
+	  byte r = p_px[i][k];
+	  byte g = p_px[i][k + 1];
+	  byte b = p_px[i][k + 2];
+
+	  p_new_px[l][m]     = r;
+	  p_new_px[l][m + 1] = g;
+	  p_new_px[l][m + 2] = b;
+	}
+    }
+  
+  free(p->px);
+  
+  p->w  = p->w >> 1;
+  p->h  = p->h >> 1;
+  p->px = new_px;
+}
+
+//Draws only active pixels 
+void ppm_draw(flame_obj_t *fo, double x, double y, ppm_t *p)
+{
+  int k = 0;
+  
+  for (int h = 0; h < p->h; h++)
+    for (int w = 0; w < p->w; w++, k += 3)
+      {
+	if (p->px[k] || p->px[k + 1] || p->px[k + 2])
+	  {
+	    flame_set_color(fo, p->px[k], p->px[k + 1], p->px[k + 2]);
+	    flame_draw_point(fo, x + w, y + h);
+	  }
+      }
+}
+
+//Clears active pixels
+void ppm_clear(flame_obj_t *fo, double x, double y, ppm_t *p)
+{
+  int k = 0;
+  
+  for (int h = 0; h < p->h; h++)
+    for (int w = 0; w < p->w; w++, k += 3)
+      {
+	if (p->px[k] || p->px[k + 1] || p->px[k + 2])
+	  {
+	    flame_set_color(fo, 0, 0, 0);
+	    flame_draw_point(fo, x + w, y + h);
+	  }
+      }
 }
 
 //
@@ -170,6 +299,23 @@ void seek_vehicle(vehicle_t *v, double t_x, double t_y)
 //
 void init_vehicle(vehicle_t *v)
 {
+  //Vehicle image
+  v->image = ppm_open("pix/ufo.ppm");
+  
+  if (!v->image)
+    {
+      printf("OUPS! No UFO.\n");
+      exit(-1);
+    }
+
+  //Down scale the image to a reasonable size
+  ppm_zoom_out_x2(v->image);
+  ppm_zoom_out_x2(v->image);
+  ppm_zoom_out_x2(v->image);
+
+  double UFO_SIZE = v->image->w * v->image->h;
+  
+  //
   v->prev_p1_x = 0; v->prev_p1_y = 0;
   v->prev_p2_x = 0; v->prev_p2_y = 0;
   v->prev_p3_x = 0; v->prev_p3_y = 0;
@@ -196,19 +342,28 @@ void init_vehicle(vehicle_t *v)
 //
 void draw_vehicle(flame_obj_t *fo, xy_t *base, vehicle_t *v)
 {
+  //Draw vehicle as triangle
   //Remove previous triangle - draw black (can cause artifacts)
-  flame_set_color(fo, 0, 0, 0);
-  flame_draw_point(fo, base->x + v->prev_c_x, base->y + v->prev_c_y);
-  flame_draw_line(fo, base->x  + v->prev_p1_x, base->y + v->prev_p1_y, base->x + v->prev_p2_x, base->y + v->prev_p2_y);
-  flame_draw_line(fo, base->x  + v->prev_p1_x, base->y + v->prev_p1_y, base->x + v->prev_p3_x, base->y + v->prev_p3_y);
-  flame_draw_line(fo, base->x  + v->prev_p3_x, base->y + v->prev_p3_y, base->x + v->prev_p2_x, base->y + v->prev_p2_y);
-  
+  //flame_set_color(fo, 0, 0, 0);
+  //flame_draw_point(fo, base->x + v->prev_c_x, base->y + v->prev_c_y);
+  /* flame_draw_line(fo, base->x  + v->prev_p1_x, base->y + v->prev_p1_y, base->x + v->prev_p2_x, base->y + v->prev_p2_y); */
+  /* flame_draw_line(fo, base->x  + v->prev_p1_x, base->y + v->prev_p1_y, base->x + v->prev_p3_x, base->y + v->prev_p3_y); */
+  /* flame_draw_line(fo, base->x  + v->prev_p3_x, base->y + v->prev_p3_y, base->x + v->prev_p2_x, base->y + v->prev_p2_y); */
+
   //Draw current
-  flame_set_color(fo, randxy(128, 255), randxy(128, 255), randxy(128, 255));
-  flame_draw_point(fo, base->x + v->c_x, base->y + v->c_y);
-  flame_draw_line(fo, base->x  + v->p1_x, base->y + v->p1_y, base->x + v->p2_x, base->y + v->p2_y);
-  flame_draw_line(fo, base->x  + v->p1_x, base->y + v->p1_y, base->x + v->p3_x, base->y + v->p3_y);
-  flame_draw_line(fo, base->x  + v->p3_x, base->y + v->p3_y, base->x + v->p2_x, base->y + v->p2_y);
+  //flame_set_color(fo, 255, 255, 255);
+  /* flame_set_color(fo, randxy(128, 255), randxy(128, 255), randxy(128, 255)); */
+  //flame_draw_point(fo, base->x + v->c_x, base->y + v->c_y);
+  /* flame_draw_line(fo, base->x  + v->p1_x, base->y + v->p1_y, base->x + v->p2_x, base->y + v->p2_y); */
+  /* flame_draw_line(fo, base->x  + v->p1_x, base->y + v->p1_y, base->x + v->p3_x, base->y + v->p3_y); */
+  /* flame_draw_line(fo, base->x  + v->p3_x, base->y + v->p3_y, base->x + v->p2_x, base->y + v->p2_y); */
+
+  //Draw ppm vehicle (preferably B&W)
+  //Remove previous
+  ppm_clear(fo, v->prev_c_x - v->image->w / 2, v->prev_c_y - v->image->h / 2, v->image);
+
+  //Draw current
+  ppm_draw(fo, v->c_x - v->image->w / 2, v->c_y - v->image->h / 2, v->image);
 }
 
 //
@@ -219,25 +374,51 @@ int main(int argc, char **argv)
   int prev_click_x, prev_click_y;
   int x_min = 50, x_max = 1900;
   int y_min = 50, y_max = 1000; 
-  flame_obj_t *fo = flame_open("Bounce", x_max, y_max);
+  flame_obj_t *fo = flame_open("Steer", x_max, y_max);
 
   srand(getpid());
   
   XEvent event;
 
   xy_t base;
-  int nb_vehicles = 9;
+  int nb_vehicles = 50;
   vehicle_t v[nb_vehicles];
 
-  int nb_points = 0;
-  double points[2 * MAX_POINTS];
+  int nb_planets = 0;
+  planet_t planets[MAX_PLANETS];
+
+  int nb_planet_images = 6;
+  ppm_t *planet_images[nb_planet_images];
+  
+  planet_images[0] = ppm_open("pix/home.ppm");
+  planet_images[1] = ppm_open("pix/planet.ppm");
+  planet_images[2] = ppm_open("pix/moon.ppm");
+  planet_images[3] = ppm_open("pix/belt1.ppm");
+  planet_images[4] = ppm_open("pix/belt2.ppm");
+  planet_images[5] = ppm_open("pix/belt3.ppm");
+
+  //Scaling down
+  ppm_zoom_out_x2(planet_images[0]);
+  ppm_zoom_out_x2(planet_images[0]);
+  ppm_zoom_out_x2(planet_images[0]);
+
+  ppm_zoom_out_x2(planet_images[1]);
+  ppm_zoom_out_x2(planet_images[1]);
+
+  ppm_zoom_out_x2(planet_images[2]);
+  ppm_zoom_out_x2(planet_images[2]);
+
+  ppm_zoom_out_x2(planet_images[3]);
+  ppm_zoom_out_x2(planet_images[3]);
+  
+  ppm_zoom_out_x2(planet_images[4]);
+  ppm_zoom_out_x2(planet_images[4]);
+  
+  ppm_zoom_out_x2(planet_images[5]);
   
   base.x = base.y = 0;
-
-  //
   
-  nb_points = 0;
-  
+  //  
   for (int i = 0; i < nb_vehicles; i++)
     init_vehicle(&v[i]);
   
@@ -266,29 +447,33 @@ int main(int argc, char **argv)
 		click_x = event.xkey.x;
 		click_y = event.xkey.y;		  
 
-		//Store a point
-		points[nb_points    ] = click_x;
-		points[nb_points + 1] = click_y;
+		//Create a planet
 
-		nb_points += 2;
+		planets[nb_planets].x = click_x;
+		planets[nb_planets].y = click_y;
+		planets[nb_planets].image = planet_images[randxy(0, nb_planet_images - 1)];
+		
+		nb_planets++;
 	      }
 	}
       else
 	{
-	  flame_set_color(fo, 255, 255, 255);
-	  for (int i = 0; i < nb_points; i += 2)
+	  /* flame_set_color(fo, 255, 255, 255); */
+	  for (int i = 0; i < nb_planets; i++)
 	    {
-	      for (double a = 0; a < 2 * PI; a += 0.1)
-		flame_draw_point(fo, points[i] + 2 * cos(a), points[i + 1] + 2 * sin(a));
+	      /* for (double a = 0; a < 2 * PI; a += 0.1) */
+	      /* 	flame_draw_point(fo, planets[i].x + 2 * cos(a), planets[i].y + 2 * sin(a)); */
+
+	      ppm_draw(fo, planets[i].x -  planets[i].image->w / 2, planets[i].y -  planets[i].image->h / 2, planets[i].image);
 	    }
-	  
+
 	  for (int i = 0; i < nb_vehicles; i++)
-	    for (int j = 0; j < nb_points; j += 2)
+	    for (int j = 0; j < nb_planets; j++)
 	      {
 		{
-		  if (dist(v[i].c_x, v[i].c_y, points[j], points[j + 1]) < MAX_DISTANCE)
+		  if (dist(v[i].c_x, v[i].c_y, planets[j].x, planets[j].y) < MAX_DISTANCE)
 		    { 
-		      seek_vehicle(&v[i], points[j], points[j + 1]);
+		      seek_vehicle(&v[i], planets[j].x, planets[j].y);
 		      update_vehicle(&v[i]);
 		      draw_vehicle(fo, &base, &v[i]);
 		    }
