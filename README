@@ -241,6 +241,13 @@ void sierpinski(display_t *d, int iter)
 
 
 -------------------------------------------------------------
-
-Lissajous:
+Lissajous curves
+-------------------------------------------------------------
+Pendulum simulation
+-------------------------------------------------------------
+Steering simulation with ppm B&W graphics
+-------------------------------------------------------------
+Flocking simulation
+-------------------------------------------------------------
+PPM image viewer with nice features (dither, grayscale, zoom, ...)
 
