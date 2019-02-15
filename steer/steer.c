@@ -40,6 +40,8 @@ typedef struct planet_s {
 //
 typedef struct vehicle_s {
 
+  int state;
+  
   //Vehicle shape (Triangle, p1, p2, p3)
   double p1_x;
   double p1_y;
@@ -297,22 +299,17 @@ void seek_vehicle(vehicle_t *v, double t_x, double t_y)
 }
 
 //
-void init_vehicle(vehicle_t *v)
-{
+void init_vehicle(vehicle_t *v, ppm_t *ufo_image)
+{  
   //Vehicle image
-  v->image = ppm_open("pix/ufo.ppm");
+  v->image = ufo_image;
   
   if (!v->image)
     {
       printf("OUPS! No UFO.\n");
       exit(-1);
     }
-
-  //Down scale the image to a reasonable size
-  ppm_zoom_out_x2(v->image);
-  ppm_zoom_out_x2(v->image);
-  ppm_zoom_out_x2(v->image);
-
+  
   double UFO_SIZE = v->image->w * v->image->h;
   
   //
@@ -324,13 +321,14 @@ void init_vehicle(vehicle_t *v)
   v->prev_c_y = 0;
 
   int off = randxy(1, 800);
-  
+
+  //Triangle
   v->p1_x = off +  0; v->p1_y = off +  0;
   v->p2_x = off +  0; v->p2_y = off + UFO_SIZE;
   v->p3_x = off + UFO_SIZE; v->p3_y = off +  0;
 
-  v->c_x = UFO_SIZE / 3;
-  v->c_y = UFO_SIZE / 3;
+  v->c_x = randxy(100, 1000);
+  v->c_y = randxy(100, 1000);
 
   v->acc_x = 0; v->acc_y =  0;
   v->vel_x = 0; v->vel_y = -2;
@@ -375,7 +373,7 @@ int main(int argc, char **argv)
   int x_min = 50, x_max = 1900;
   int y_min = 50, y_max = 1000; 
   flame_obj_t *fo = flame_open("Steer", x_max, y_max);
-
+  
   srand(getpid());
   
   XEvent event;
@@ -384,10 +382,33 @@ int main(int argc, char **argv)
   int nb_vehicles = 50;
   vehicle_t v[nb_vehicles];
 
+  base.x = base.y = 0;
+  
   int nb_planets = 0;
   planet_t planets[MAX_PLANETS];
-
-  int nb_planet_images = 6;
+  
+  //
+  const int nb_ufo_images = 3;
+  ppm_t *ufo_images[nb_ufo_images];
+  
+  ufo_images[0] = ppm_open("pix/ufo.ppm");
+  ufo_images[1] = ppm_open("pix/ufo2.ppm");
+  ufo_images[2] = ppm_open("pix/ufo3.ppm");
+  
+  ppm_zoom_out_x2(ufo_images[0]);
+  ppm_zoom_out_x2(ufo_images[0]);
+  ppm_zoom_out_x2(ufo_images[0]);
+  
+  ppm_zoom_out_x2(ufo_images[1]);
+  ppm_zoom_out_x2(ufo_images[1]);
+  
+  ppm_zoom_out_x2(ufo_images[2]);
+  ppm_zoom_out_x2(ufo_images[2]);
+  ppm_zoom_out_x2(ufo_images[2]);
+  ppm_zoom_out_x2(ufo_images[2]);
+  
+  //
+  const int nb_planet_images = 6;
   ppm_t *planet_images[nb_planet_images];
   
   planet_images[0] = ppm_open("pix/home.ppm");
@@ -415,12 +436,14 @@ int main(int argc, char **argv)
   ppm_zoom_out_x2(planet_images[4]);
   
   ppm_zoom_out_x2(planet_images[5]);
-  
-  base.x = base.y = 0;
-  
-  //  
+
+  //
   for (int i = 0; i < nb_vehicles; i++)
-    init_vehicle(&v[i]);
+    {
+      //Assign a UFO image
+      int pos = randxy(0, nb_ufo_images - 1);
+      init_vehicle(&v[i], ufo_images[pos]);
+    }
   
   flame_clear_display(fo);
   
@@ -451,6 +474,8 @@ int main(int argc, char **argv)
 
 		planets[nb_planets].x = click_x;
 		planets[nb_planets].y = click_y;
+
+		//Assign a planet image
 		planets[nb_planets].image = planet_images[randxy(0, nb_planet_images - 1)];
 		
 		nb_planets++;
@@ -471,6 +496,7 @@ int main(int argc, char **argv)
 	    for (int j = 0; j < nb_planets; j++)
 	      {
 		{
+		  //Go to the closest planet
 		  if (dist(v[i].c_x, v[i].c_y, planets[j].x, planets[j].y) < MAX_DISTANCE)
 		    { 
 		      seek_vehicle(&v[i], planets[j].x, planets[j].y);
@@ -479,7 +505,7 @@ int main(int argc, char **argv)
 		    }
 		}
 	      }
-		    
+	  
 	  usleep(10000);
 	}
     }
