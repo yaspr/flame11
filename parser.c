@@ -84,7 +84,7 @@ double get_rad_angle(FILE *fd, int *a, int *b)
   (*a) = get_number(fd);
 
   walk(fd);
-
+  
   c = fgetc(fd); curr++;
 
   if (c == '*')
@@ -475,7 +475,5 @@ void print_parser_meta(parser_meta_t *p)
 		printf("%c\t\tpop\n", p->alphabet[i]);
 
       i++;
-    }
-  
-  
+    }  
 }

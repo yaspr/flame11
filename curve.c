@@ -46,7 +46,7 @@ void cuBezier(flame_obj_t *fo, unsigned x[4], unsigned y[4], unsigned x_max, uns
 //
 void roll_cuBezier(flame_obj_t *fo, unsigned x_min, unsigned x_max, unsigned y_min, unsigned y_max)
 {
-  unsigned  i = 0, r;
+  unsigned i = 0, r;
   unsigned X[NB_POINTS], Y[NB_POINTS];
   
   srand(time(NULL));

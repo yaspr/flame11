@@ -85,27 +85,6 @@ void rotate2D(double x, double y, double angle, double *ox, double *oy)
 }
 
 //
-void fill_triangle(flame_obj_t *fo, xy_t base, xyz_t v1, xyz_t v2, xyz_t v3, int r, int g, int b)
-{
-  float invslope1 = (v2.x - v1.x) / (v2.y - v1.y);
-  float invslope2 = (v3.x - v1.x) / (v3.y - v1.y);
-  
-  float curx1 = v1.x;
-  float curx2 = v1.x;
-
-  flame_set_color(fo, r, g, b);
-  
-  for (int scanlineY = v1.y; scanlineY <= v2.y; scanlineY++)
-    {
-      flame_draw_line(fo, base.x - curx1, base.y + scanlineY, base.x - curx2, base.y + scanlineY);
-      curx1 += invslope1;
-      curx2 += invslope2;
-    }
-
-  flame_set_color(fo, 255, 255, 255);
-}
-
-//
 void draw_vert(flame_obj_t *fo, xy_t base, xyz_t c)
 {
   for (double a = 0.0; a < 2 * PI; a += 0.1)
@@ -147,7 +126,7 @@ void render3D(flame_obj_t *fo, xy_t base, object_3D_t *o, xyz_t pov, xy_t rot, i
   
   if (edge_on)
     {
-      flame_set_color(fo, 0, 0, 255);
+      flame_set_color(fo, 255, 255, 255);
       
       //
       for (int i = 0; i < o->n; i++)
@@ -369,7 +348,7 @@ int main(int argc, char **argv)
   
   flame_clear_display(fo);
   
-  flame_set_color(fo, 0, 255, 0);
+  flame_set_color(fo, 0, 0, 0);
   
   draw_plane(fo, &plane, base1, pov, rot);
   

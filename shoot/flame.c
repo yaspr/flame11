@@ -188,16 +188,17 @@ char flame_wait(flame_obj_t *fo, int *click_x, int *click_y)
 		*click_x = event.xkey.x;
 		*click_y = event.xkey.y;
 		
-
-		printf("%d\n", event.xbutton.button);
-		
 		//Left click == 1, Right click == 3
 		return event.xbutton.button;
 	      }
 	}
+      XNextEvent(fo->display, &event);
+      
+      if (event.type == KeyPress)
+	return XLookupKeysym(&event.xkey, 0);
       else
 	{
-	  ;//Magic goes in here;
+	  ;
 	}
     }
 }

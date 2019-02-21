@@ -8,7 +8,7 @@
 
 #define G 4
 
-#define ORIG_X 400
+#define ORIG_X 800
 #define ORIG_Y 200
 
 //
@@ -20,7 +20,7 @@ typedef struct xy_s { double x; double y; } xy_t;
 //
 typedef struct double_pend_s
 {
-  //
+  //First ball
   double prev_p1_x;
   double prev_p1_y;
 
@@ -35,7 +35,7 @@ typedef struct double_pend_s
   
   double acc1;
 
-  //
+  //Second ball
   double prev_p2_x;
   double prev_p2_y;
   
@@ -45,7 +45,7 @@ typedef struct double_pend_s
   double m2;
   double len2;
   double a2;
-
+  
   double vel2;
   
   double acc2;
@@ -96,9 +96,8 @@ void draw_ball(flame_obj_t *fo, double x, double y, double px, double py, double
   flame_set_color(fo, 0, 0, 0);
   for (double a = 0.0; a < 2 * PI; a += 0.1)
     flame_draw_point(fo, px + (r + w / 2) * cos(a), py + (r + w / 2) * sin(a));
-
+  
   flame_set_color(fo, 255, 255, 255);
-
   for (double a = 0.0; a < 2 * PI; a += 0.1)
     flame_draw_point(fo, x + (r + w / 2) * cos(a), y + (r + w / 2) * sin(a));
 }
@@ -136,8 +135,8 @@ void init_double_pend(double_pend_t *p)
 
   //First section
   p->r1   = 5;
-  p->m1   = 25; 
-  p->len1 = 100;
+  p->m1   = 100; 
+  p->len1 = 400;
   p->a1 = PI / 4;
 
   p->p1_x = ORIG_X + p->len1 * sin(p->a1);
@@ -149,8 +148,8 @@ void init_double_pend(double_pend_t *p)
 
   //Second section
   p->r2   = 5;
-  p->m2   = 20; 
-  p->len2 = 100;
+  p->m2   = 90; 
+  p->len2 = 200;
   p->a2 = PI / 8;
   
   p->p2_x = p->p1_x + p->len2 * sin(p->a2);

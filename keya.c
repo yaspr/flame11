@@ -49,11 +49,10 @@ int main(int argc, char **argv)
   while (1)
     {
       c = flame_wait(fo, &click_x, &click_y);
-
+      
       if (c == 1)
 	{
 	  printf("Click at: %d, %d\n", click_x, click_y);
-
 	  
 	  goto run;
 	}
@@ -68,6 +67,6 @@ int main(int argc, char **argv)
     }
 
   flame_close(fo);
-
+  
   return 0;
 }

@@ -310,7 +310,7 @@ void init_vehicle(vehicle_t *v, ppm_t *ufo_image)
       exit(-1);
     }
   
-  double UFO_SIZE = v->image->w * v->image->h;
+  double UFO_SIZE = v->image->w * v->image->h / 4;
   
   //
   v->prev_p1_x = 0; v->prev_p1_y = 0;
@@ -323,12 +323,12 @@ void init_vehicle(vehicle_t *v, ppm_t *ufo_image)
   int off = randxy(1, 800);
 
   //Triangle
-  v->p1_x = off +  0; v->p1_y = off +  0;
-  v->p2_x = off +  0; v->p2_y = off + UFO_SIZE;
+  v->p1_x = off +  0      ; v->p1_y = off +  0;
+  v->p2_x = off +  0      ; v->p2_y = off + UFO_SIZE;
   v->p3_x = off + UFO_SIZE; v->p3_y = off +  0;
-
-  v->c_x = randxy(100, 1000);
-  v->c_y = randxy(100, 1000);
+  
+  v->c_x = (v->p1_x + v->p2_x + v->p3_x) / 3;
+  v->c_y = (v->p1_y + v->p2_y + v->p3_y) / 3;
 
   v->acc_x = 0; v->acc_y =  0;
   v->vel_x = 0; v->vel_y = -2;
@@ -444,6 +444,9 @@ int main(int argc, char **argv)
       int pos = randxy(0, nb_ufo_images - 1);
       init_vehicle(&v[i], ufo_images[pos]);
     }
+
+  printf("\n Click to place a random object on the screen.\n");
+  printf("\n Objects and vehicles are picked randomly.\n");
   
   flame_clear_display(fo);
   
@@ -506,7 +509,7 @@ int main(int argc, char **argv)
 		}
 	      }
 	  
-	  usleep(10000);
+	  usleep(1000);
 	}
     }
 
