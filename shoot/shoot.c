@@ -20,6 +20,9 @@
 
 #define MAX_STARS 1000
 
+//10ms per frame
+#define MS_PER_FRAME 10
+
 //
 typedef unsigned char byte;
 
@@ -202,7 +205,7 @@ ppm_t *ppm_open(char *fname)
     return NULL;
 }
 
-//Pick one pixel out of 2 & 1 row out of two
+//Pick one pixel out of 2 & 1 row out of two - Data loss!
 void ppm_zoom_out_x2(ppm_t *p)
 {
   int l = 0, m = 0;
@@ -244,11 +247,8 @@ void ppm_draw(flame_obj_t *fo, double x, double y, ppm_t *p)
   for (int h = 0; h < p->h; h++)
     for (int w = 0; w < p->w; w++, k += 3)
       {
-	if (p->px[k] || p->px[k + 1] || p->px[k + 2])
-	  {
-	    flame_set_color(fo, p->px[k], p->px[k + 1], p->px[k + 2]);
-	    flame_draw_point(fo, x + w, y + h);
-	  }
+	flame_set_color(fo, p->px[k], p->px[k + 1], p->px[k + 2]);
+	flame_draw_point(fo, x + w, y + h);
       }
 }
 
@@ -260,11 +260,8 @@ void ppm_clear(flame_obj_t *fo, double x, double y, ppm_t *p)
   for (int h = 0; h < p->h; h++)
     for (int w = 0; w < p->w; w++, k += 3)
       {
-	if (p->px[k] || p->px[k + 1] || p->px[k + 2])
-	  {
-	    flame_set_color(fo, 0, 0, 0);
-	    flame_draw_point(fo, x + w, y + h);
-	  }
+	flame_set_color(fo, 0, 0, 0);
+	flame_draw_point(fo, x + w, y + h);
       }
 }
 
@@ -300,13 +297,13 @@ void particle_draw(flame_obj_t *fo, particle_t *p)
 }
 
 //
-void particle_update(particle_t *p)
+void particle_update(particle_t *p, double scale)
 {
   p->prev_px = p->px;
   p->prev_py = p->py;
 
-  p->px += p->vx;
-  p->py += p->vy;
+  p->px += p->vx * scale;
+  p->py += p->vy * scale;
   
   p->vx += p->m * p->ax;
   p->vy += p->m * p->ay;
@@ -335,7 +332,7 @@ int vehicle_check_bounds(vehicle_t *v)
 }
 
 //
-void vehicle_update(vehicle_t *v)
+void vehicle_update(vehicle_t *v, double scale)
 {
   //
   v->prev_p1_x = v->p1_x;
@@ -351,14 +348,14 @@ void vehicle_update(vehicle_t *v)
   v->prev_cy = v->cy;
   
   //
-  v->p1_x += v->vx;
-  v->p1_y += v->vy;
+  v->p1_x += scale * v->vx;
+  v->p1_y += scale * v->vy;
 
-  v->p2_x += v->vx;
-  v->p2_y += v->vy;
+  v->p2_x += scale * v->vx;
+  v->p2_y += scale * v->vy;
   
-  v->p3_x += v->vx;
-  v->p3_y += v->vy;
+  v->p3_x += scale * v->vx;
+  v->p3_y += scale * v->vy;
 
   v->angle = atan(v->vy / v->vx);
   
@@ -401,7 +398,7 @@ void vehicle_show(flame_obj_t *fo, vehicle_t *v)
 //
 void vehicle_draw(flame_obj_t *fo, vehicle_t *v)
 {
-  double scale = 20;
+  double scale = 30;
   
   //Draw ppm vehicle (preferably B&W)
   //Remove previous
@@ -413,7 +410,7 @@ void vehicle_draw(flame_obj_t *fo, vehicle_t *v)
   ppm_draw(fo, v->cx - v->image->w / 2, v->cy - v->image->h / 2, v->image);
 
   //Velocity vector on top of image
-  flame_set_color(fo, 0, 0, 255);
+  flame_set_color(fo, 50, 50, 50);
   flame_draw_line(fo, v->cx, v->cy, v->cx + scale * v->vx, v->cy + scale * v->vy);
 }
 
@@ -444,26 +441,32 @@ int main(int argc, char **argv)
   int nb_stars = 100;
   double xy[MAX_STARS];
   
-  double dt = 0;
+  double dt= 0;
   double elapsed = 0;
   double time_step_s = 0;
-    
+  int const_fps = 50;
+  
   vehicle_t v1;
   int shot_len = 0;
-  particle_t p1, p2;
+  particle_t p1, p2; //p1 bullet, p2 attacker
   int show_attacker = 0;
   int nb_particles = 10;
   particle_t pl[nb_particles];
 
   int SHOT_SCOPE = 20;
   int ATTACK_DELAY = 5;
-
-  ppm_t *images[3];
+  int NB_KILLS = 3;
+  
+  ppm_t *images[6];
   
   images[0] = ppm_open("ppm/asteroid1.ppm");
   images[1] = ppm_open("ppm/asteroid2.ppm");
   images[2] = ppm_open("ppm/asteroid3.ppm");
-  
+  images[3] = ppm_open("ppm/attacker1.ppm");
+  images[4] = ppm_open("ppm/attacker2.ppm");
+  images[5] = ppm_open("ppm/attacker3.ppm");
+
+  //Asteroids
   ppm_zoom_out_x2(images[0]);
   ppm_zoom_out_x2(images[0]);
  
@@ -472,21 +475,31 @@ int main(int argc, char **argv)
   
   ppm_zoom_out_x2(images[2]);
   ppm_zoom_out_x2(images[2]);
-    
+
+  //Aliens
+  ppm_zoom_out_x2(images[3]);
+
+  ppm_zoom_out_x2(images[4]);
+
+  ppm_zoom_out_x2(images[5]);
+
+  double time_count = 0;
+  double _before_, _after_;
   struct timeval before, after;
   unsigned long long frame_count = 0;
   
-  v1.image = ppm_open("ppm/ufo.ppm");
+  //UFO
+  v1.image = ppm_open("ppm/ufo3.ppm");
   ppm_zoom_out_x2(v1.image);
-  
-  p2.image = ppm_open("ppm/attacker2.ppm");
-  ppm_zoom_out_x2(p2.image);
-  ppm_zoom_out_x2(p2.image);
-  
+    
  run:
 
+  NB_KILLS = 3;
+  
   SHOT_SCOPE = 20;
-  ATTACK_DELAY = 5;
+  ATTACK_DELAY = 4;
+
+  printf("K: %d\tS: %d\tD: %d\n", NB_KILLS, SHOT_SCOPE, ATTACK_DELAY);
   
   show_attacker = 0;
 
@@ -494,7 +507,7 @@ int main(int argc, char **argv)
   nb_particles = 10;
   
   p1.max_velocity = 0;
-
+  
   time_step_s = 0;
   
   v1.m = 40;
@@ -517,11 +530,11 @@ int main(int argc, char **argv)
   v1.vx = 0;
   v1.vy = 0;
   
-  v1.ax = 0.01;
-  v1.ay = 0.01;
+  v1.ax = 0.001;
+  v1.ay = 0.001;
 
   v1.max_velocity = 1;
-  v1.max_acceleration = 2;
+  v1.max_acceleration = 1.5;
 
   for (int i = 0; i < nb_stars; i += 2)
     {
@@ -544,10 +557,10 @@ int main(int argc, char **argv)
 
       int s = (randxy(0, 1)) ? -1 : 1;
       
-      pl[i].ax = s * 0.0001;
-      pl[i].ay = s * 0.0001;
+      pl[i].ax = s * 0.005;
+      pl[i].ay = s * 0.005;
 
-      pl[i].max_velocity = 0.5;
+      pl[i].max_velocity = 1;
 
       pl[i].shot_dead = 0;
 
@@ -566,15 +579,25 @@ int main(int argc, char **argv)
   while (1)
     {      
       gettimeofday(&after, NULL);
+
+      _before_ = (before.tv_sec) * 1000 + (before.tv_usec) / 1000 ; //Time in ms
+      _after_  = (after.tv_sec) * 1000 + (after.tv_usec) / 1000 ; //Time in ms
+
+      elapsed = (_after_ - _before_);
+
+      time_count += elapsed;
       
-      elapsed = fabs(after.tv_sec - before.tv_sec);
+      //Adjust game velocity to frame rate
+      dt = (elapsed) / 30;
+
+      before = after;
+      _before_ = _after_;
       
       frame_count++;
 
-      before = after;
-
+      //
       draw_stars(fo, xy, nb_stars);
-      
+          
       if (XPending(fo->display) > 0)
 	{
 	  XNextEvent(fo->display, &event);
@@ -586,29 +609,29 @@ int main(int argc, char **argv)
 	      if (c == 'q')
 		break;
 	      else
-		if (c == 82) //111
+		if (c == 82) //111 Up
 		  {
-		    v1.ay -= 0.5;
+		    v1.ay -= 0.5 ;
 		  }
 		else
-		  if (c == 84) //116 
+		  if (c == 84) //116  Down
 		    {
-		      v1.ay += 0.5;
+		      v1.ay += 0.5 ;
 		    }
 		  else
-		    if (c == 83) //114
+		    if (c == 83) //114 Ritgh
 		      {
-			v1.ax += 0.5;
+			v1.ax += 0.5 ;
 		      }
 		    else
-		      if (c == 81) //113
+		      if (c == 81) //113 Left
 			{
-			  v1.ax -= 0.5;
+			  v1.ax -= 0.5 ;
 			}
 		      else
 			if (c == 's')
 			  {
-			    v1.max_velocity *= 0.8;
+			    v1.max_velocity *= 0.5;
 			  }
 			else
 			  if (c == 'a')
@@ -617,23 +640,23 @@ int main(int argc, char **argv)
 			    }
 			  else
 			    if (c == ' ')
-			      {				
-				double d = dist(v1.cx, v1.vy, v1.vx, v1.vy);
+			      {
+				double d = dist(v1.cx, v1.cy, v1.vx, v1.vy);
 				
-				p1.px = v1.cx + (v1.vx) / d;
-				p1.py = v1.cy + (v1.cy) / d;
+				p1.px = v1.cx + (v1.vx / d);
+				p1.py = v1.cy + (v1.vy / d);
 				
-				p1.r = 2;
+				p1.r = 1;
 				p1.m = p1.r;
 				
-				p1.vx = 10 * (v1.vx); /// d;
-				p1.vy = 10 * (v1.vy); /// d;
+				p1.vx = (v1.vx); 
+				p1.vy = (v1.vy);
 				
-				p1.ax = 0.1;
-				p1.ay = 0.1;
+				p1.ax = 0.2;
+				p1.ay = 0.2;
 
-				p1.max_velocity = 10;
-
+				p1.max_velocity = 30;
+				
 				shot_len = 0;
 			      }
 	    }
@@ -642,131 +665,137 @@ int main(int argc, char **argv)
 	      {
 	      }
 	}
+
+      //Bounce on bounds --> Dead
+      if (!vehicle_check_bounds(&v1))
+	vehicle_draw(fo, &v1);
       else
 	{
-	  //Bounce on bounds --> Dead
-	  if (!vehicle_check_bounds(&v1))
-	    vehicle_draw(fo, &v1);
-	  else
+	  goto run;
+	}	  
+
+      vehicle_update(&v1, dt);
+	  
+      //Bounce into an asteroid --> Dead
+      for (int i = 0; i < nb_particles; i++)
+	{
+	  if (dist(v1.cx, v1.cy, pl[i].px, pl[i].py) <= (v1.r + pl[i].r))
 	    {
 	      goto run;
-	    }	  
-
-	  vehicle_update(&v1);
-	  
-	  //Bounce into an asteroid --> Dead
-	  for (int i = 0; i < nb_particles; i++)
-	    {
-	      if (dist(v1.cx, v1.cy, pl[i].px, pl[i].py) <= (v1.r + pl[i].r))
-		{
-		  goto run;
-		}
-
-	      //Bounce into alien attacker --> Dead
-	      if (show_attacker && dist(v1.cx, v1.cy, p2.px, p2.py) <= (v1.r + p2.r))
-		{
-		  goto run;
-		}
 	    }
-	  
-	  //
-	  for (int i = 0; i < nb_particles; i++)
-	    if (!pl[i].shot_dead)
-	      {
-		particle_draw(fo, &pl[i]);
-		particle_update(&pl[i]);
-	      }
-	  
-	  //Simulate a shot - Distance of SHOT_SCOPE
-	  if (shot_len < SHOT_SCOPE)
+
+	  //Bounce into alien attacker --> Dead
+	  if (show_attacker && dist(v1.cx, v1.cy, p2.px, p2.py) <= (v1.r + p2.r))
 	    {
-	      //Check is attacker is hit
-	      if (show_attacker)
-		{
-		  if (particle_collide(&p1, &p2))
-		    {
-		      /* printf("Dead attacker %d\n", ATTACK_DELAY); */
-		      
-		      //Erase bullet
-		      flame_set_color(fo, 0, 0, 0);
-		      for (double a = 0.0; a < 2 * PI; a += 0.01)
-			flame_draw_point(fo, p1.prev_px + p1.r * cos(a), p1.prev_py + p1.r * sin(a));
-
-		      //Erase attacker
-		      ppm_clear(fo, p2.prev_px - p2.image->w / 2, p2.prev_py - p2.image->h / 2, p2.image);
-		      
-		      p1.max_velocity = 0;
-		      p2.max_velocity = 0;
-		      
-		      show_attacker = 0;
-
-		      SHOT_SCOPE += 30;
-		      
-		      ATTACK_DELAY += 5;
-		    }
-		}
-
-	      //If a bullet hits a ball
-	      for (int i = 0; i < nb_particles; i++)
-		if (particle_collide(&p1, &pl[i]))
-		  {
-		    pl[i].shot_dead = 1;
-		    
-		    //Erase bullet
-		    flame_set_color(fo, 0, 0, 0);
-		    for (double a = 0.0; a < 2 * PI; a += 0.01)
-		      flame_draw_point(fo, p1.prev_px + p1.r * cos(a), p1.prev_py + p1.r * sin(a));
-
-		    //Erase shot object
-		    ppm_clear(fo, pl[i].prev_px - pl[i].image->w / 2, pl[i].prev_py - pl[i].image->h / 2, pl[i].image);
-		    
-		    //Remove hit particle  
-		    pl[i] = pl[nb_particles - 1];
-		    nb_particles--;
-		    
-		    p1.max_velocity = 0;
-		    
-		    //Gain more scope
-		    SHOT_SCOPE += 20;
-		  }
-
-	      if (nb_particles == 0)
-		{
-		  goto run;
-		}
-	      
-	      //Keep going otherwise
-	      particle_show(fo, &p1);
-	      particle_update(&p1);
-	      shot_len++;
+	      goto run;
 	    }
-	  else
+	}
+	  
+      //
+      for (int i = 0; i < nb_particles; i++)
+	if (!pl[i].shot_dead)
+	  {
+	    particle_draw(fo, &pl[i]);
+	    particle_update(&pl[i], dt);
+	  }
+	  
+      //Simulate a shot - Distance of SHOT_SCOPE
+      if (shot_len < SHOT_SCOPE)
+	{
+	  //Check is attacker is hit
+	  if (show_attacker && NB_KILLS)
 	    {
-	      if (shot_len >= SHOT_SCOPE)
+	      //If hit
+	      if (particle_collide(&p1, &p2))
 		{
-		  shot_len = 0;
-		  p1.max_velocity = 0;
-		  
-		  //Erase particle
+		  /* printf("Dead attacker %d\n", ATTACK_DELAY); */
+		      
+		  //Erase bullet
 		  flame_set_color(fo, 0, 0, 0);
 		  for (double a = 0.0; a < 2 * PI; a += 0.01)
-		    flame_draw_point(fo, p1.prev_px + p1.r * cos(a), p1.prev_py + p1.r * sin(a));		  
+		    flame_draw_point(fo, p1.prev_px + p1.r * cos(a), p1.prev_py + p1.r * sin(a));
+
+		  //Erase attacker
+		  ppm_clear(fo, p2.prev_px - p2.image->w / 2, p2.prev_py - p2.image->h / 2, p2.image);
+		      
+		  p1.max_velocity = 0;
+		  p2.max_velocity = 0;
+		      
+		  show_attacker = 0;
+
+		  SHOT_SCOPE += 20;
+		      
+		  ATTACK_DELAY += 5;
+		      
+		  NB_KILLS--;
 		}
 	    }
+	  
+	  //If a bullet hits a ball
+	  for (int i = 0; i < nb_particles; i++)
+	    if (particle_collide(&p1, &pl[i]))
+	      {
+		pl[i].shot_dead = 1;
+		    
+		//Erase bullet
+		flame_set_color(fo, 0, 0, 0);
+		for (double a = 0.0; a < 2 * PI; a += 0.01)
+		  flame_draw_point(fo, p1.prev_px + p1.r * cos(a), p1.prev_py + p1.r * sin(a));
 
-	  if (show_attacker)
+		//Erase shot object
+		ppm_clear(fo, pl[i].prev_px - pl[i].image->w / 2, pl[i].prev_py - pl[i].image->h / 2, pl[i].image);
+		    
+		//Remove hit particle  
+		pl[i] = pl[nb_particles - 1];
+		nb_particles--;
+		    
+		p1.max_velocity = 0;
+		    
+		//Gain more scope
+		SHOT_SCOPE += 20;
+	      }
+
+	  if (!nb_particles && !NB_KILLS)
 	    {
-	      particle_draw(fo, &p2);
-	      particle_update(&p2);
+	      goto run;
+	    }
+	      
+	  //Keep going otherwise
+	  particle_show(fo, &p1);
+	  particle_update(&p1, dt);
+	  shot_len++;
+	}
+      else
+	{
+	  if (shot_len >= SHOT_SCOPE)
+	    {
+	      shot_len = 0;
+	      p1.max_velocity = 0;
+		  
+	      //Erase particle
+	      flame_set_color(fo, 0, 0, 0);
+	      for (double a = 0.0; a < 2 * PI; a += 0.01)
+		flame_draw_point(fo, p1.prev_px + p1.r * cos(a), p1.prev_py + p1.r * sin(a));		  
 	    }
 	}
 
-      //1 second 
-      if (elapsed == 1)
+      if (show_attacker)
 	{
-	  printf("FPS: %llu\n", frame_count);
+	  //If the gun is pointed at the attacker, teleport :)
+
+	  particle_draw(fo, &p2);
+	  particle_update(&p2, dt);
+	}
+      
+      //1 second 
+      if (time_count >= 1000)
+	{
+	  /* printf("%llu\n", frame_count); */
+	  
 	  frame_count = 0;
 	  time_step_s++;
+
+	  time_count = 0.0;
 	}
       
       //Every ATTACK_DELAY seconds
@@ -782,15 +811,15 @@ int main(int argc, char **argv)
 	      nb_stars += 2;
 	    }
 
-	  if (!show_attacker)
+	  if (!show_attacker && NB_KILLS)
 	    {
 	      /* printf("Showing attacker %d\n", ATTACK_DELAY); */
 	      
 	      //Show attacker
 	      show_attacker = 1;
 
-	      p2.px = randxy(10, 1000);
-	      p2.py = randxy(10, 1000);
+	      p2.px = randxy(20, 1000);
+	      p2.py = randxy(20, 1000);
 	  
 	      p2.r = 30;
 	      p2.m = p2.r;
@@ -801,20 +830,27 @@ int main(int argc, char **argv)
 	      p2.ax = 0.001;
 	      p2.ay = 0.001;
 
+	      p2.image = images[randxy(3, 5)];
+	      
 	      p2.max_velocity = 3;
 	    }
 	  else
-	    if (show_attacker)
-	      {
-		/* printf("Clearing attacker %d\n", ATTACK_DELAY); */
-		
-		show_attacker = 0;
-		
-		p2.max_velocity = 0;
-		
-		//Erase attacker
-		ppm_clear(fo, p2.prev_px - p2.image->w / 2, p2.prev_py - p2.image->h / 2, p2.image);
-	      }
+	    {
+	      if (NB_KILLS)
+		{
+		  /* printf("Clearing attacker %d\n", ATTACK_DELAY); */
+		  
+		  show_attacker = 0;
+		  
+		  p2.max_velocity = 0;
+		  
+		  //Erase attacker
+		  ppm_clear(fo, p2.prev_px - p2.image->w / 2, p2.prev_py - p2.image->h / 2, p2.image);
+		}
+	      else
+		if (!nb_particles)
+		  goto run;
+	    }
 	}
     }
   
